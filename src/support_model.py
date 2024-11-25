@@ -31,6 +31,20 @@ import pandas as pd
 
 
 def create_model(params, X_train, y_train, method = DecisionTreeRegressor(), cv= 5, scoring = "neg_mean_squared_error"):
+    """
+    Crea y ajusta un modelo utilizando búsqueda en cuadrícula para encontrar los mejores hiperparámetros.
+
+    Parameters:
+        params (dict): Diccionario de parámetros a probar en la búsqueda en cuadrícula.
+        X_train (array-like): Conjunto de características de entrenamiento.
+        y_train (array-like): Etiquetas del conjunto de entrenamiento.
+        method (estimator, optional): Modelo de regresión a usar (por defecto DecisionTreeRegressor).
+        cv (int, optional): Número de pliegues en la validación cruzada (por defecto 5).
+        scoring (str, optional): Métrica de evaluación a usar en la búsqueda en cuadrícula (por defecto "neg_mean_squared_error").
+
+    Returns:
+        grid_search (GridSearchCV): Objeto de GridSearchCV ajustado con los mejores parámetros encontrados.
+    """
     grid_search = GridSearchCV(estimator = method, param_grid=params, cv = cv, scoring = scoring, n_jobs=-1, verbose=1)
     grid_search.fit(X_train, y_train)
     return grid_search
@@ -66,8 +80,28 @@ def metricas(y_train, y_train_pred, y_test, y_test_pred):
 
 
 class RegressionModel:
+    """
+    Clase para crear, entrenar y evaluar modelos de regresión.
+    
+    Attributes:
+        X_train (array-like): Conjunto de características de entrenamiento.
+        X_test (array-like): Conjunto de características de prueba.
+        y_train (array-like): Etiquetas del conjunto de entrenamiento.
+        y_test (array-like): Etiquetas del conjunto de prueba.
+        model (estimator): Modelo de regresión entrenado.
+        metrics_df (DataFrame, optional): DataFrame con las métricas de evaluación.
+        best_params (dict, optional): Los mejores parámetros encontrados durante la búsqueda de hiperparámetros.
+    """
     def __init__(self, X, y, test_size=0.3, random_state=42):
-        # División de los datos en entrenamiento y prueba
+        """
+        Inicializa el modelo de regresión y divide los datos en entrenamiento y prueba.
+
+        Parameters:
+            X (array-like): Características del conjunto de datos.
+            y (array-like): Etiquetas del conjunto de datos.
+            test_size (float, optional): Fracción de los datos a utilizar para el conjunto de prueba (por defecto 0.3).
+            random_state (int, optional): Semilla para la aleatoriedad en la división de datos (por defecto 42).
+        """
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
             X, y, test_size=test_size, random_state=random_state
         )
@@ -77,7 +111,19 @@ class RegressionModel:
         self.random_state = random_state
     
     def _get_model(self, model_type, learning_rate=0.1):
-        # Diccionario de modelos disponibles
+        """
+        Obtiene el modelo seleccionado según el tipo indicado.
+
+        Parameters:
+            model_type (str): Tipo de modelo a usar ("linear", "decision_tree", "random_forest", "gradient_boosting").
+            learning_rate (float, optional): Tasa de aprendizaje para el modelo de GradientBoosting (por defecto 0.1).
+
+        Returns:
+            estimator: Modelo de regresión correspondiente al tipo seleccionado.
+
+        Raises:
+            ValueError: Si el tipo de modelo no es válido.
+        """
         models = {
             "linear": LinearRegression(),
             "decision_tree": DecisionTreeRegressor(random_state=self.random_state),
@@ -89,10 +135,19 @@ class RegressionModel:
         return models[model_type]
 
     def train(self, model_type, params=None, learning_rate=0.1):
-        # Obtener el modelo seleccionado
+        """
+        Entrena el modelo seleccionado con los datos de entrenamiento y calcula las métricas de evaluación.
+
+        Parameters:
+            model_type (str): Tipo de modelo a usar ("linear", "decision_tree", "random_forest", "gradient_boosting").
+            params (dict, optional): Parámetros para la búsqueda en cuadrícula (por defecto None).
+            learning_rate (float, optional): Tasa de aprendizaje para el modelo de GradientBoosting (por defecto 0.1).
+
+        Returns:
+            DataFrame: DataFrame con las métricas de evaluación para los conjuntos de entrenamiento y prueba.
+        """
         self.model = self._get_model(model_type, learning_rate)
         
-        # Si se pasan parámetros, se realiza GridSearch
         if params:
             grid_search = GridSearchCV(self.model, param_grid=params, cv=5, scoring="r2", n_jobs=-1)
             grid_search.fit(self.X_train, self.y_train)
@@ -102,11 +157,9 @@ class RegressionModel:
         else:
             self.model.fit(self.X_train, self.y_train)
         
-        # Predicciones para las métricas
         y_train_pred = self.model.predict(self.X_train)
         y_test_pred = self.model.predict(self.X_test)
 
-        # Crear un dataframe con las métricas
         self.metrics_df = pd.DataFrame({
             "Train": [
                 r2_score(self.y_train, y_train_pred),
@@ -118,43 +171,48 @@ class RegressionModel:
                 mean_absolute_error(self.y_test, y_test_pred),
                 root_mean_squared_error(self.y_test, y_test_pred)
             ]
-        , }, index=["R2", "MAE", "RMSE"]).T
+        }, index=["R2", "MAE", "RMSE"]).T
         
         return self.metrics_df
 
     def display_metrics(self):
-        # Mostrar las métricas si están disponibles
+        """
+        Muestra las métricas de evaluación del modelo.
+
+        Si las métricas no están disponibles, muestra un mensaje indicándolo.
+        """
         if self.metrics_df is not None:
             display(self.metrics_df)
         else:
             print("No hay métricas disponibles. Primero entrena el modelo.")
     
     def plot_residuals(self):
-        # Verificar que se ha entrenado el modelo
+        """
+        Muestra los gráficos de residuos para los conjuntos de entrenamiento y prueba.
+
+        Si el modelo no ha sido entrenado previamente, muestra un mensaje indicándolo.
+        """
         if self.model is None:
             print("Primero debes entrenar un modelo para graficar los residuos.")
             return
         
-        # Predicciones para calcular los residuos
         y_train_pred = self.model.predict(self.X_train)
         y_test_pred = self.model.predict(self.X_test)
 
-
-        # Crear gráficos de los residuos
         plt.figure(figsize=(12, 6))
 
         # Residuos de entrenamiento
         plt.subplot(1, 2, 1)
         sns.scatterplot(x=self.y_train, y=y_train_pred, color="blue", alpha=0.6)
-        plt.plot([min(self.y_train),max(self.y_train)], [min(y_train_pred), max(y_train_pred)], color = "red", ls = "--")
+        plt.plot([min(self.y_train), max(self.y_train)], [min(y_train_pred), max(y_train_pred)], color="red", ls="--")
         plt.title("Train")
         plt.xlabel("Valores Reales")
         plt.ylabel("Valores predichos")
 
         # Residuos de prueba
         plt.subplot(1, 2, 2)
-        sns.scatterplot(x=self.y_test, y=y_test_pred, color="orange", alpha=0.6)
-        plt.plot([min(self.y_test),max(self.y_test)], [min(y_test_pred), max(y_test_pred)], color = "red", ls = "--")
+        sns.scatterplot(x=self.y_test, y=y_test_pred, color="green", alpha=0.6)
+        plt.plot([min(self.y_test), max(self.y_test)], [min(y_test_pred), max(y_test_pred)], color="red", ls="--")
         plt.title("Test")
         plt.xlabel("Valores Reales")
         plt.ylabel("Valores predichos")
@@ -163,9 +221,33 @@ class RegressionModel:
         plt.show()
     
     def get_best_params(self):
+        """
+        Obtiene los mejores parámetros del modelo si se ha realizado una búsqueda en cuadrícula.
+
+        Esta función devuelve los parámetros óptimos encontrados durante una búsqueda en cuadrícula,
+        si dicha búsqueda se ha realizado previamente. Si no se ha realizado ninguna búsqueda en cuadrícula
+        o no hay parámetros disponibles, se muestra un mensaje y se retorna `None`.
+
+        Returns:
+            dict or None: Diccionario con los mejores parámetros si se realizó la búsqueda en cuadrícula, 
+                        o `None` si no hay parámetros disponibles.
+        """
         # Obtener los mejores parámetros si se realizaron búsquedas en cuadrícula
         if self.best_params:
             return self.best_params
         else:
             print("No se ha realizado búsqueda en cuadrícula o no hay parámetros disponibles.")
             return None
+
+    def return_model(self):
+        """
+        Retorna el modelo actual.
+
+        Esta función devuelve el modelo entrenado o el modelo base utilizado en la instancia. 
+        Es útil para obtener el modelo que se ha entrenado o ajustado y utilizarlo para predicciones o evaluaciones posteriores.
+
+        Returns:
+            estimator: El modelo entrenado o el modelo base usado en la instancia.
+        """
+        return self.model
+

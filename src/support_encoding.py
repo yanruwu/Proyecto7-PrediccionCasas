@@ -11,7 +11,6 @@ import seaborn as sns
 # Otros objetivos
 # -----------------------------------------------------------------------
 import math
-from itertools import combinations
 
 
 # Para pruebas estadísticas

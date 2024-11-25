@@ -181,7 +181,7 @@ def encode_onehot(data, columns):
 def encode_target(data, columns, response_var):
     """
     Realiza codificación basada en el target para las columnas seleccionadas.
-
+    
     Parameters:
         data (pd.DataFrame): DataFrame con datos.
         columns (list): Columnas a codificar.
@@ -190,6 +190,11 @@ def encode_target(data, columns, response_var):
     Returns:
         pd.DataFrame, object: DataFrame codificado y el objeto TargetEncoder utilizado.
     """
+    # Inicializamos el TargetEncoder para las columnas específicas
     encoder = TargetEncoder(cols=columns)
-    df_encoded = encoder.fit_transform(X=data, y=data[response_var])
+    
+    # Ajustamos el encoder con los datos de entrenamiento y la variable objetivo
+    df_encoded = encoder.fit_transform(data[columns], data[response_var])
+    
+    # Devolvemos el dataframe con las columnas codificadas y el encoder
     return df_encoded, encoder
